@@ -1,0 +1,207 @@
+#!/usr/bin/env python
+# Copyright (C) ContinuumBridge Limited, 2014-2016 - All Rights Reserved
+# Written by Peter Claydon
+#
+"""
+The newbridge command allows creation of modifying of bridges on an SD card that
+is mounted on the computer on which the command is run. It is likely that the following
+will need to be installed:
+
+sudo pip install click
+sudo pip install requests
+"""
+
+THISBRIDGE = ""
+ADDRESS = "http://portal.continuumbridge.com/"
+import requests
+from requests.auth import HTTPBasicAuth
+from datetime import datetime
+import json
+import time
+import sys
+import click
+from os import rename, remove
+from shutil import move
+from os.path import expanduser
+
+def login(user, password):
+    print "Logging in"
+    url = ADDRESS + "/api/user/v1/user_auth/login/"
+    headers = {'Content-Type': 'application/json'}
+    data = {
+            "email": user,
+            "password": password
+           }
+    r = requests.post(url, data=json.dumps(data), headers=headers)
+    if r.status_code == 200:
+        sessionid = r.cookies['sessionid']
+    else:
+        print "Could not log in, get: ", r.status_code, " Please check user name and password"
+        exit()
+    return sessionid
+
+def logout(sessionid):
+    print "Logging out"
+    url = ADDRESS + "/api/user/v1/user_auth/logout/"
+    data = {}
+    headers = {'Content-Type': 'application/json'}
+    cookies = {'sessionid': sessionid}
+    r = requests.post(url, data=json.dumps(data), headers=headers, cookies=cookies)
+    if r.status_code != 200:
+        print "Problem logging out, get: ", r.status_code
+
+def changeLine(key, value):
+    tmpfile = "thisbridge.tmp"
+    newline = "export " + key + "='" + value + "'\n"
+    replaced = False
+    with open(THISBRIDGE, "r") as fi:
+        with open(tmpfile, "w") as fo:
+            for line in fi:
+                if line[0] != "#":
+                    if key in line:
+                        line = newline
+                        replaced = True
+                    fo.write(line)
+            if not replaced:
+                fo.write(newline)
+    move(tmpfile, THISBRIDGE)
+
+def changeHostname(bridgeName, mount):
+    tmpfile = "hosts.tmp"
+    fileName = mount + "/etc/hostname"
+    with open(fileName, "w") as f:
+        f.write(bridgeName + "\n")
+    fileName = mount + "/etc/hosts"
+    with open(fileName, "r") as fi:
+        with open(tmpfile, "w") as fo:
+            for line in fi:
+                if "127.0.1.1" in line:
+                    line = "127.0.1.1   " + bridgeName + "\n"
+                fo.write(line)
+    move(tmpfile, fileName)
+
+def keyExists(key):
+    found = False
+    with open(THISBRIDGE, "r") as fi:
+        for line in fi:
+            if line[0] != "#":
+                if key in line:
+                    found = True
+                    break
+    return found
+
+def getBridgeEnv(key):
+    with open(THISBRIDGE, "r") as fi:
+        for line in fi:
+            if key in line:
+                key, value = line.split("=", 1)
+                val = value.replace('"', '')
+                value = val.replace("'", "")
+                break
+    return value
+
+def checkConfig(config, keys):
+    data = {}
+    for key in keys:
+        if key not in config:
+            print "Error. No", key, "found in config file"
+            exit()
+        else:
+            data[key] = config[key]
+    return data
+
+def loadJSON(fileName):
+    try:
+        with open(fileName, 'r') as f:
+            config = json.load(f)
+            print "Read file:", fileName
+            return config
+    except Exception as inst:
+        print "Error. Failed to load file:", fileName
+        print "Exception type:", type(inst)
+        print "Exception args:", str(inst.args)
+        exit()
+
+def checkget(get, expected, action, obj, sessionid, doExit):
+     if get != expected:
+         print "Failed to", action, obj, "get code:", get
+         if doExit:
+             logout(sessionid)
+             exit()
+
+@click.command()
+@click.option('--bridge', nargs=1, help='Options: post|patch|get.')
+@click.option('--name', nargs=1, help='The name to give a bridge.')
+@click.option('--mount', nargs=1, help='The mount point of the SD card.')
+@click.option('--user', prompt='User name', help='Username. If not specified a prompt will be given.')
+@click.option('--password', prompt=True, hide_input=True, help='Password. If not specified a prompt will be given.')
+
+def cb(bridge, mount, user, password, name):
+
+    global ADDRESS
+    global THISBRIDGE
+    if bridge:
+        if not user or not password:
+            print "Usage: cb --bridge [post|patch|get] --mount <mount_point> --user <user_name> --password <password>"
+            exit()
+    if not mount:
+            print "Usage: cb --bridge [post|patch|get] --mount <mount_point> --user <user_name> --password <password>"
+            exit()
+    if bridge:
+        THISBRIDGE = mount + "/opt/cbridge/thisbridge/thisbridge.sh"
+        action = bridge
+        if action == "post" or action == "patch":
+            if name:
+                data = {"name": name}
+            else:
+                data = {}
+        elif action == "get":
+            data = {}
+        else:
+            print "Unrecognised action:", action
+            exit()
+        sessionid = login(user, password) 
+        print "Bridge:", action
+        headers = {'Content-Type': 'application/json'}
+        cookies = {'sessionid': sessionid}
+        if action == "post":
+            if keyExists("CB_BRIDGE_KEY"):
+                print "Bridge already initialised. Command ignored"
+                exit()
+            else:
+                url = ADDRESS + "/api/bridge/v1/bridge/"
+                r = requests.post(url, data=json.dumps(data), headers=headers, cookies=cookies)
+                checkget(r.status_code, 201, action, "bridge", sessionid, True)
+                content = json.loads(r.content)
+                changeLine("CB_BRIDGE_KEY", content["key"])
+                changeLine("CB_BRIDGE_URI", content["resource_uri"])
+                changeLine("CB_BRIDGE_NAME", content["name"])
+                changeLine("CB_BID", content["cbid"])
+                bridgeName = "BID" + content["cbid"][3:]
+                data = {"name": "BID" + bridgeName}
+                print "name: ", data
+                url = ADDRESS + getBridgeEnv("CB_BRIDGE_URI")
+                r = requests.patch(url, data=json.dumps(data), headers=headers, cookies=cookies)
+                checkget(r.status_code, 202, "rename", "bridge", sessionid, True)
+                content = json.loads(r.content)
+                changeLine("CB_BRIDGE_NAME", content["name"])
+                changeHostname(bridgeName, mount)
+                print "Created new bridge, ID:", content["cbid"]
+        elif action == "patch":
+            url = ADDRESS + getBridgeEnv("CB_BRIDGE_URI")
+            r = requests.patch(url, data=json.dumps(data), headers=headers, cookies=cookies)
+            checkget(r.status_code, 202, action, "bridge", sessionid, True)
+            content = json.loads(r.content)
+            changeLine("CB_BRIDGE_NAME", content["name"])
+            changeHostname(content["name"], mount)
+        elif action == "get":
+            url = ADDRESS + getBridgeEnv("CB_BRIDGE_URI")
+            r = requests.get(url, data=json.dumps(data), headers=headers, cookies=cookies)
+            checkget(r.status_code, 200, action, "bridge", sessionid, True)
+            text = json.loads(r.text)
+            print(json.dumps(text, indent=4))
+        logout(sessionid)
+
+if __name__ == '__main__':
+    cb()
+
