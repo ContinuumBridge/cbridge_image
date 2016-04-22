@@ -75,7 +75,7 @@ Now remove the SD card, insert it into a Raspberry Pi and power up the Raspberry
     user name: bridge
     password: t00f@r
     
-Those are zeros in the password. WE RECOMMEND THAT YOU CHANGE THIS IMMEDIATELY USING THE LINUX PASSWD COMMAND.
+Those are zeros in the password. WE RECOMMEND THAT YOU CHANGE THIS IMMEDIATELY USING THE LINUX passwd COMMAND.
 
 Once you've logged on, type:
 
