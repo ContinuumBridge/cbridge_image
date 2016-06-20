@@ -66,7 +66,7 @@ You can now register your bridge. First type df again:
 
 In this case, the filesystem at /dev/sdc2 is what you need in the following command:
 
-    ./newbridge --bridge post --mount /media/ec2aa3d2-eee7-454e-8260-d145df5ddcba --user <your_user_name> --password <your_password>
+    sudo ./newbridge --bridge post --mount /media/ec2aa3d2-eee7-454e-8260-d145df5ddcba --user <your_user_name> --password <your_password>
 
 where:
 
@@ -75,7 +75,7 @@ where:
   
 This gives your bridge a default name of the form BIDxxx, where xxx is the bridge number. You can change this with this form of command, which changes the bridge name to MyBridge:
 
-    ./newbridge --bridge patch --name MyBridge --mount /media/ec2aa3d2-eee7-454e-8260-d145df5ddcba --user <your_user_name> --password <your_password>
+    sudo ./newbridge --bridge patch --name MyBridge --mount /media/ec2aa3d2-eee7-454e-8260-d145df5ddcba --user <your_user_name> --password <your_password>
   
 Now remove the SD card, insert it into a Raspberry Pi and power up the Raspberry Pi. See other documentation for how to connect to this. When logging on to the Raspberry Pi, user the following credentials:
 
