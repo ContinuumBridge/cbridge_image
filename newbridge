@@ -178,7 +178,7 @@ def cb(bridge, mount, user, password, name):
                 changeLine("CB_BRIDGE_NAME", content["name"])
                 changeLine("CB_BID", content["cbid"])
                 bridgeName = "BID" + content["cbid"][3:]
-                data = {"name": "BID" + bridgeName}
+                data = {"name": bridgeName}
                 print "name: ", data
                 url = ADDRESS + getBridgeEnv("CB_BRIDGE_URI")
                 r = requests.patch(url, data=json.dumps(data), headers=headers, cookies=cookies)
