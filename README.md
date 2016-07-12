@@ -5,17 +5,18 @@ There are two versions of the image:
 
 * Version 1.0 is compatible with all Raspberry Pi 1 and 2 boards, but not Raspberry Pi 3 (or at least has not been tested).
 * Version 2.0 is compatible with Raspberry Pi 2 and 3. It is based on 2016-05-27 version of Raspbian Jessie Lite. This is recommended for all future work and incorporates additional security features.
+* Verson 2.1 incorporates some minor changes to verion 2.0 and should used in preference to it.
 
 To download the SD card image, paste one of the following into a Linux shell:
 
     wget https://github.com/ContinuumBridge/cbridge_image/releases/download/v1.0/cbridge.zip
-    wget https://github.com/ContinuumBridge/cbridge_image/releases/download/v2.0/cbridge.zip
+    wget https://github.com/ContinuumBridge/cbridge_image/releases/download/v2.1/cbridge.zip
 
 Then type:
 
     unzip cbridge.zip
 
-This will extract a file called 2016-04-20-BridgeMaster or 2016-06-19-Bridge-Master into the current folder. 
+This will extract a file called 2016-04-20-BridgeMaster or 2016-07-12-Bridge-Master into the current folder. 
 
 Put a SD card into an SD card reader attached to your PC and umount all its partitions. For example, once you have inserted the SD card, type df, and you'll see a response similar to the following:
 
@@ -36,7 +37,7 @@ In this case, the SD card filesystem is /dev/sdc1 (you can tell as it's the one 
 Now you can copy the image onto the SD card using the appropriate commands:
 
     sudo dd bs=4M if=./2016-04-20-BridgeMaster of=/dev/sdc
-    sudo dd bs=4M if=./2016-06-19-Bridge-Master of=/dev/sdc
+    sudo dd bs=4M if=./2016-07-12-Bridge-Master of=/dev/sdc
 
 Note that if the SD card filesystem was /dev/sdb, for example, use /dev/sdb instead of /dev/sdc.
 
